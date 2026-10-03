@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Guowa Pobieracz</title>
+    <title>Video Downloader</title>
     <link rel="manifest" href="/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="theme-color" content="#0f172a">
@@ -12,13 +12,11 @@
     
     <div class="max-w-md w-full mx-auto mt-8 bg-slate-800/90 backdrop-blur rounded-2xl shadow-2xl p-6 border border-slate-700/60">
         <div class="text-center mb-6">
-            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600/20 text-blue-400 mb-3 border border-blue-500/30">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600/20 mb-3 border border-blue-500/30 overflow-hidden">
+                <img src="/ikona.png" alt="Logo" class="w-full h-full object-cover">
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-white">Guowa Pobieracz</h1>
-            <p class="text-sm text-slate-400 mt-1">Wklej link z TikToka, Twittera lub YouTube</p>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Video Downloader</h1>
+            <p class="text-sm text-slate-400 mt-1">Wklej link z TikToka lub YouTube</p>
         </div>
 
         <form id="downloadForm" class="space-y-4">
@@ -32,6 +30,17 @@
             </button>
         </form>
 
+        <!-- Pasek postępu -->
+        <div id="progressContainer" class="mt-5 hidden space-y-2">
+            <div class="flex justify-between text-xs font-medium text-slate-300">
+                <span id="progressText">Pobieranie i konwersja...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-700/50">
+                <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+            </div>
+        </div>
+
         <div id="status" class="mt-4 text-center text-sm font-medium hidden p-3 rounded-xl border"></div>
     </div>
 
@@ -44,18 +53,45 @@
         const urlInput = document.getElementById('urlInput');
         const submitBtn = document.getElementById('submitBtn');
         const statusDiv = document.getElementById('status');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressText = document.getElementById('progressText');
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const url = urlInput.value.trim();
             if (!url) return;
 
-            // Blokujemy formularz i pokazujemy stan ładowania
+            // Blokujemy formularz i pokazujemy pasek postępu
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            statusDiv.className = "mt-4 text-center text-sm font-medium p-3 rounded-xl border bg-blue-950/40 border-blue-800/50 text-blue-300";
-            statusDiv.textContent = 'Trwa pobieranie i konwersja (FFmpeg)... To może chwilę potrwać.';
-            statusDiv.classList.remove('hidden');
+            statusDiv.classList.add('hidden');
+            progressContainer.classList.remove('hidden');
+
+            let progress = 0;
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+            progressText.textContent = 'Łączenie z serwerem...';
+
+            // Symulacja płynnego postępu do 90% w trakcie oczekiwania na serwer
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    // Im wyżej, tym wolniej rośnie, żeby nie dobić do 100% przedwcześnie
+                    const increment = (90 - progress) * 0.1;
+                    progress = Math.min(90, progress + Math.max(increment, 0.5));
+                    
+                    const rounded = Math.round(progress);
+                    progressBar.style.width = rounded + '%';
+                    progressPercent.textContent = rounded + '%';
+
+                    if (rounded > 30 && rounded < 70) {
+                        progressText.textContent = 'Pobieranie pliku wideo...';
+                    } else if (rounded >= 70) {
+                        progressText.textContent = 'Konwersja FFmpeg (magia w tle)...';
+                    }
+                }
+            }, 400);
 
             try {
                 const response = await fetch('/api/download', {
@@ -64,22 +100,28 @@
                     body: JSON.stringify({ url })
                 });
 
+                clearInterval(progressInterval);
+
                 if (!response.ok) {
                     const errData = await response.json();
                     throw new Error(errData.detail || 'Wystąpił błąd podczas pobierania');
                 }
 
+                // Sukces! Dobijamy pasek do 100%
+                progressBar.style.width = '100%';
+                progressPercent.textContent = '100%完毕'; // lub po prostu 100%
+                progressPercent.textContent = '100%';
+                progressText.textContent = 'Gotowe! Zapisywanie pliku...';
+
                 // Odbieranie pliku jako strumień binarny
                 const blob = await response.blob();
                 
-                // Pobieramy nazwę pliku z nagłówka serwera
                 const contentDisposition = response.headers.get('content-disposition');
                 let filename = 'video.mp4';
                 if (contentDisposition && contentDisposition.includes('filename=')) {
                     filename = contentDisposition.split('filename=')[1].replace(/["']/g, '');
                 }
 
-                // Automatyczne wywołanie zapisu pliku na urządzeniu mobilnym
                 const downloadUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = downloadUrl;
@@ -89,19 +131,26 @@
                 a.remove();
                 window.URL.revokeObjectURL(downloadUrl);
 
-                statusDiv.className = "mt-4 text-center text-sm font-medium p-3 rounded-xl border bg-emerald-950/40 border-emerald-800/50 text-emerald-300";
-                statusDiv.textContent = 'Sukces! Plik został pobrany na Twoje urządzenie.';
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                    statusDiv.className = "mt-4 text-center text-sm font-medium p-3 rounded-xl border bg-emerald-950/40 border-emerald-800/50 text-emerald-300";
+                    statusDiv.textContent = 'Sukces! Plik został pobrany na Twoje urządzenie.';
+                    statusDiv.classList.remove('hidden');
+                }, 800);
+
                 urlInput.value = '';
             } catch (err) {
+                clearInterval(progressInterval);
+                progressContainer.classList.add('hidden');
                 statusDiv.className = "mt-4 text-center text-sm font-medium p-3 rounded-xl border bg-rose-950/40 border-rose-800/50 text-rose-300";
                 statusDiv.textContent = 'Błąd: ' + err.message;
+                statusDiv.classList.remove('hidden');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         });
 
-        // Rejestracja Service Workera dla trybu PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
