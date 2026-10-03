@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Video Downloader</title>
+    <title>Guowa Pobieracz</title>
     <link rel="manifest" href="/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="theme-color" content="#0f172a">
@@ -12,10 +12,10 @@
     
     <div class="max-w-md w-full mx-auto mt-8 bg-slate-800/90 backdrop-blur rounded-2xl shadow-2xl p-6 border border-slate-700/60">
         <div class="text-center mb-6">
-            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600/20 mb-3 border border-blue-500/30 overflow-hidden">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600/20 mb-3 border border-blue-500/30 overflow-hidden shadow-lg">
                 <img src="/ikona.png" alt="Logo" class="w-full h-full object-cover">
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-white">Video Downloader</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Guowa Pobieracz</h1>
             <p class="text-sm text-slate-400 mt-1">Wklej link z TikToka lub YouTube</p>
         </div>
 
@@ -45,7 +45,7 @@
     </div>
 
     <footer class="text-center text-xs text-slate-500 py-4">
-        PWA &bull; Automatyczne czyszczenie co 24h
+        Guowa PWA &bull; Automatyczne czyszczenie co 24h
     </footer>
 
     <script>
@@ -63,7 +63,6 @@
             const url = urlInput.value.trim();
             if (!url) return;
 
-            // Blokujemy formularz i pokazujemy pasek postępu
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
             statusDiv.classList.add('hidden');
@@ -74,10 +73,8 @@
             progressPercent.textContent = '0%';
             progressText.textContent = 'Łączenie z serwerem...';
 
-            // Symulacja płynnego postępu do 90% w trakcie oczekiwania na serwer
             const progressInterval = setInterval(() => {
                 if (progress < 90) {
-                    // Im wyżej, tym wolniej rośnie, żeby nie dobić do 100% przedwcześnie
                     const increment = (90 - progress) * 0.1;
                     progress = Math.min(90, progress + Math.max(increment, 0.5));
                     
@@ -107,15 +104,11 @@
                     throw new Error(errData.detail || 'Wystąpił błąd podczas pobierania');
                 }
 
-                // Sukces! Dobijamy pasek do 100%
                 progressBar.style.width = '100%';
-                progressPercent.textContent = '100%完毕'; // lub po prostu 100%
                 progressPercent.textContent = '100%';
                 progressText.textContent = 'Gotowe! Zapisywanie pliku...';
 
-                // Odbieranie pliku jako strumień binarny
                 const blob = await response.blob();
-                
                 const contentDisposition = response.headers.get('content-disposition');
                 let filename = 'video.mp4';
                 if (contentDisposition && contentDisposition.includes('filename=')) {
